@@ -1,0 +1,101 @@
+4. RHEL 10 Specific Commands & Behaviors
+ Banned & Removed Legacy Subcommands
+Because Simple Content Access is mandatory, running these commands in RHEL 10 drops a syntax termination error:
+
+• subscription-manager attach 🛑 (Removed)
+• subscription-manager list --available 🛑 (Removed)
+• subscription-manager list --consumed 🛑 (Removed)
+• subscription-manager remove 🛑 (Removed) [1, 2, 3]
+🆕 Missed / Extra Commands Added in RHEL 10
+The rhc connectivity stack on RHEL 10 relies on a brand new Feature Level architecture to replace granular flag choices. [1, 2]
+• Register with a specific Feature Level:
+rhc connect --activation-key=<key> --organization=<org> --feature-level=<level>
+(Available Levels: remote-management [Default], analytics, or content-only to restrict cloud visibility).
+• Check the active feature configuration state:
+rhc status
+• Toggle specific cloud capabilities post-registration:
+rhc enable <feature> or rhc disable <feature>
+• Inspect explicit RHEL 10 Product Signing roots:
+rct cat-cert /etc/pki/product-default/<product_id>.pem (Used heavily in RHEL 10 to check architecture compatibility bounds)
+====================================================================================
+#rhc connect --activation-key <key> --organization <org>
+
+#rhc connect ----- to connect the redhat subscription management
+#rhc connect --disable-feature=analytics,remote-management --You can disable these features by using the 
+
+	rhc connect --activation-key=<key> --organization=<org> --feature-level=<level>
+	(Available Levels: remote-management [Default], analytics, or content-only to restrict cloud visibility).
+	
+
+rhc connect command with the --disable-feature option
+
+rhc connect --activation-key=<activation_key_name>  --organization=<organization_ID> 
+
+rhc disconnect  ---To unregister from Redhat
+
+
+subscription-manager register 
+
+
+subscription-manager register \ --activationkey <activation_key_name> --org <organization_ID> 
+
+subscription-manager status 
+
+
+insights-client --register ------The subscription-manager command cannot connect your system to Red Hat Insights. After registration, you can use the insights-client command to enable Red Hat Insights
+
+Setting System Purpose Attributes
+System purpose is an optional tagging mechanism that helps to filter your inventory. You can set the following attributes and values by using the subscription-manager command:
+Role
+• Red Hat Enterprise Linux Server
+• Red Hat Enterprise Linux Workstation
+• Red Hat Enterprise Linux Compute Node
+Service-Level Agreement
+• Premium
+• Standard
+• Self-Support
+Usage
+• Production
+• Development/Test
+• Disaster Recovery
+	| Registering Systems for Red Hat Support
+Use the subscription-manager syspurpose command to set relevant system purpose attributes:
+
+root@host:~# subscription-manager syspurpose role \ --set 'Red Hat Enterprise Linux Workstation' role set to "Red Hat Enterprise Linux Workstation".
+root@host:~# subscription-manager syspurpose service-level \ --set 'Premium' service_level_agreement set to "Premium".
+root@host:~# subscription-manager syspurpose usage \ --set 'Development/Test' usage set to "Development/Test".
+
+
+# subscription-manager syspurpose usage --list 
+
+subscription-manager unregister 
+
+
+Inspecting Identity Certificates
+A registered system stores several certificates under the /etc/pki directory.
+The /etc/pki/product-default certificates
+Identify the Red Hat products that are installed on the system.
+The /etc/pki/consumer certificate and key pair Identifies the system.
+The /etc/pki/entitlement certificate and key pair Authenticates the system to repositories.
+You can use the rct cat-cert command to inspect the certificates in more detail:
+
+rct cat-cert /etc/pki/product-default/486.pem -------------------------------------------
+ Product Certificate
+-------------------------------------------
+Certificate:
+ Path: /etc/pki/product-default/486.pem
+ Version: 1.0
+ Serial: 12750047592154747372
+ Start Date: 2023-07-18 08:19:16+00:00
+ End Date: 2043-07-18 08:19:16+00:00
+====================
+5. System Purpose Configuration
+System purpose lets you tag RHEL machines by their deployment footprint so your organization can automatically categorize resource usage graphs in the cloud console
+• View system purpose settings:
+subscription-manager syspurpose show
+• Set OS Role: Tag the server role (e.g., Server, Workstation).
+subscription-manager syspurpose role --set="Red Hat Enterprise Linux Server"
+• Set SLA/Support level: Define your support coverage requirements.
+subscription-manager syspurpose service-level --set="Standard"
+• Set Usage type: Classify environment footprints (Production, Development, QA).
+subscription-manager syspurpose usage --set="Production"
