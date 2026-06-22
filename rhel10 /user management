@@ -1,0 +1,300 @@
+                        +------------------+
+
+                        | /etc/login.defs  |
+                        +--------+---------+
+                                 ^
+                                 | (1) run / (2) read
+                                 v
+   +---------------+    +--------+---------+    (3) write  +-------------+
+
+   |  /etc/skel    |<---| # useradd <user> |-------------->| /etc/group  |
+   +-------+-------+    +--------+---------+               +-------------+
+
+           |                     |                         | /etc/passwd |
+           |                     | (4) create              +-------------+
+           | (5) copy            v                         | /etc/shadow |
+           |            +--------+---------+               +-------------+
+           +----------->| /home/username   |
+                        +------------------+
+
+
+=====================================================================
+** Types of users in rhel10 **
+
+    1.super user(root) --0
+    2.system accounts---(1-200)
+    3.system process_users------(201-9999)
+    4.Normal users-----------1000+
+
+#useradd user1
+	it will create user by using /etc/login.defs and /etc/useradd parameters.
+		1.cretae a new entry in /etc/passwd file.
+		2.cretae a new entry in /etc/group file.
+		3. crete a directory with username in the /home path.
+		4. crate a file in /var/spool/mail path with username.
+		5. copy the all file /etc/skel to /home/username.
+
+Types useradd with deifferent options.
+
++-------+-----------------------------+------------------------------------------------------------+---------------------------------------------+
+
+| Short | Long Option                 | Function                                                   | Practical Example                           |
++-------+-----------------------------+------------------------------------------------------------+---------------------------------------------+
+
+| None  | --badname                   | Do not check for bad names                                 | sudo useradd --badname system.admin         |
+| -b    | --base-dir BASE_DIR         | Base directory for the home directory of the new account   | sudo useradd -b /users username             |
+| None  | --btrfs-subvolume-home      | Use BTRFS subvolume for home directory                     | sudo useradd --btrfs-subvolume-home user   |
+| -c    | --comment COMMENT           | GECOS field of the new account                             | sudo useradd -c "John Doe" username         |
+| -d    | --home-dir HOME_DIR         | Home directory of the new account                          | sudo useradd -d /custom/dir username        |
+| -D    | --defaults                  | Print or change default useradd configuration              | useradd -D                                  |
+| -e    | --expiredate EXPIRE_DATE    | Expiration date of the new account                         | sudo useradd -e 2026-12-31 username         |
+| -f    | --inactive INACTIVE         | Password inactivity period of the new account              | sudo useradd -f 30 username                 |
+| -F    | --add-subids-for-system     | Add entries to sub[ud]id even when adding a system user    | sudo useradd -r -F system_service           |
+| -g    | --gid GROUP                 | Name or ID of the primary group of the new account         | sudo useradd -g developers username         |
+| -G    | --groups GROUPS             | List of supplementary groups of the new account            | sudo useradd -G wheel,docker username       |
+| -h    | --help                      | Display this help message and exit                         | useradd -h                                  |
+| -k    | --skel SKEL_DIR             | Use this alternative skeleton directory                    | sudo useradd -k /etc/custom_skel username   |
+| -K    | --key KEY=VALUE             | Override /etc/login.defs defaults                          | sudo useradd -K UID_MIN=2000 username       |
+| -l    | --no-log-init               | Do not add the user to the lastlog and faillog databases   | sudo useradd -l temp_user                   |
+| -m    | --create-home               | Create the user's home directory                           | sudo useradd -m username                    |
+| -M    | --no-create-home            | Do not create the user's home directory                    | sudo useradd -M service_user                |
+| -N    | --no-user-group             | Do not create a group with the same name as the user       | sudo useradd -N username                    |
+| -o    | --non-unique                | Allow to create users with duplicate (non-unique) UID      | sudo useradd -o -u 1001 shared_user         |
+| -p    | --password PASSWORD         | Encrypted password of the new account                      | sudo useradd -p '$6$rounds=40008...' user   |
+| -r    | --system                    | Create a system account                                    | sudo useradd -r My_service              |
+| -R    | --root CHROOT_DIR           | Directory to chroot into                                   | sudo useradd -R /mnt/target username        |
+| -P    | --prefix PREFIX_DIR         | Prefix directory where are located the /etc/* files        | sudo useradd -P /alt/config username        |
+| -s    | --shell SHELL               | Login shell of the new account                             | sudo useradd -s /bin/bash username          |
+| -u    | --uid UID                   | User ID of the new account                                 | sudo useradd -u 1500 username               |
+| -U    | --user-group                | Create a group with the same name as the user              | sudo useradd -U username                    |
+| -Z    | --selinux-user SEUSER       | Use a specific SEUSER for the SELinux user mapping         | sudo useradd -Z user_u username             |
+| None  | --selinux-range SERANGE     | Use a specific MLS range for the SELinux user mapping      | sudo useradd --selinux-range s0 username    |
++-------+-----------------------------+------------------------------------------------------------+---------------------------------------------+
+==========================================================================================================================================================
+The -Z (or --selinux-user) option is one of the most powerful security flags available in useradd. It allows you to bind a new Linux user account directly to a specific SELinux user context at the exact moment of creation.
+The Core Problem It Solves:
+By default, when you create a regular user in RHEL 10, they are mapped to a generic SELinux identity called unconfined_u. If that user account gets compromised or behaves maliciously, SELinux grants them significant leeway—they can run arbitrary scripts from /tmp, execute compilers, or attempt network connections.
+The -Z flag bypasses that loose default state and forces the user into a strict, pre-defined security box (confinement) immediately.
+Standard SELinux Profiles You Can Assign
+When using useradd -Z, you pass one of RHEL's built-in SELinux roles as the argument: 
+
++-------------------+----------------------------------------+--------------------------------------------------------+--------------------------------------------------------+
+
+| SELinux User (-Z) | Intended Role                          | Key Restrictions Imposed by SELinux                    | Example Commands (Mapping & Execution)                 |
++-------------------+----------------------------------------+--------------------------------------------------------+--------------------------------------------------------+
+
+| user_u            | Regular unprivileged staff/contractor. | Completely blocks sudo or su. Cannot execute files     | #useradd -Z user_u jdoe 
+                                                                                                                      | #Map Linux user 'jdoe' to user_u                      |
+|                   |                                        | in /tmp. Cannot view logs.                             | semanage login -a -s user_u jdoe                       |
+|                   |                                        |                                                        |                                                        |
+|                   |                                        |                                                        | $ sudo systemctl restart sshd                          |
+|                   |                                        |                                                        | (Result: Permission denied by SELinux policy)          |
++-------------------+----------------------------------------+--------------------------------------------------------+--------------------------------------------------------+
+
+| staff_u           | System administrators who need daily   | Permitted to use sudo to transition to full            | #useradd -Z staff_u sysops  
+                                                                                                                      | #Map Linux admin 'sysops' to staff_u                  |
+|                   | access.                                | administrative clearance (sysadm_r).                   | semanage login -a -s staff_u sysops                    |
+|                   |                                        |                                                        |                                                        |
+|                   |                                        |                                                        | $ sudo -i                                              |
+|                   |                                        |                                                        | # id -Z                                                |
+|                   |                                        |                                                        | (Result: staff_u:sysadm_r:sysadm_t:s0-s0:c0.c1023)     |
++-------------------+----------------------------------------+--------------------------------------------------------+--------------------------------------------------------+
+
+| xguest_u          | Public kiosks or guest terminal        | Highly restricted. Cannot use network tools except via | #useradd -Z xguest_u guestuser 
+                                                                                                                      |  #Map Linux guest account to xguest_u                  |
+|                   | accounts.                              | a web browser. Files erase on log out.                 | semanage login -a -s xguest_u guestuser                |
+|                   |                                        |                                                        |                                                        |
+|                   |                                        |                                                        | $ ping 8.8.8.8                                         |
+|                   |                                        |                                                        | (Result: Blocked - no raw network socket access)       |
++-------------------+----------------------------------------+--------------------------------------------------------+--------------------------------------------------------+
+=======================================================================================================================================
++-------------------+----------------------------------------+------------------------------------------------------------+
+
+| SELinux User (-Z) | Intended Role                          | Direct useradd Creation Command                            |
++-------------------+----------------------------------------+------------------------------------------------------------+
+
+| user_u            | Regular unprivileged staff/contractor. | # useradd -Z user_u jdoe                                   |
++-------------------+----------------------------------------+------------------------------------------------------------+
+
+| staff_u           | System administrators who need daily   | # useradd -Z staff_u sysops                                |
+|                   | access.                                |                                                            |
++-------------------+----------------------------------------+------------------------------------------------------------+
+
+| xguest_u          | Public kiosks or guest terminal        | # useradd -Z xguest_u guestuser                            |
+|                   | accounts.                              |                                                            |
++-------------------+----------------------------------------+------------------------------------------------------------+
+=======================================Example commands=============================
+[root@host1 ~]# useradd -D
+GROUP=100
+GROUPS=
+HOME=/home
+INACTIVE=-1
+EXPIRE=
+SHELL=/bin/bash
+SKEL=/etc/skel
+USRSKEL=/usr/etc/skel
+CREATE_MAIL_SPOOL=yes
+LOG_INIT=yes
+[root@host1 ~]# 
+[root@host1 ~]# useradd -u 1001 user1
+useradd: UID 1001 is not unique
+[root@host1 ~]# tail -5 /etc/passwd
+_osbuild-composer:x:984:984:OSBuild Composer user:/:/usr/sbin/nologin
+systemd-coredump:x:983:983:systemd Core Dumper:/:/usr/sbin/nologin
+rhel:x:1000:1000::/home/rhel:/bin/bash
+cloud-user:x:1001:1001:Cloud User:/home/cloud-user:/bin/bash
+stapunpriv:x:159:159:systemtap unprivileged user:/var/lib/stapunpriv:/sbin/nologin
+[root@host1 ~]# uname -a
+Linux host1 6.12.0-55.20.1.el10_0.x86_64 #1 SMP PREEMPT_DYNAMIC Mon Jun 30 02:11:57 EDT 2025 x86_64 GNU/Linux
+[root@host1 ~]# useradd user1
+[root@host1 ~]# tail -5 /etc/passwd
+systemd-coredump:x:983:983:systemd Core Dumper:/:/usr/sbin/nologin
+rhel:x:1000:1000::/home/rhel:/bin/bash
+cloud-user:x:1001:1001:Cloud User:/home/cloud-user:/bin/bash
+stapunpriv:x:159:159:systemtap unprivileged user:/var/lib/stapunpriv:/sbin/nologin
+user1:x:1002:1002::/home/user1:/bin/bash
+[root@host1 ~]# useradd -u 1003 user2
+[root@host1 ~]# useradd -g 1002 user3
+[root@host1 ~]# useradd -c "linux_engineer" user4
+[root@host1 ~]# mkdir -p /data/users
+[root@host1 ~]# useradd -b /data/users data_user
+[root@host1 ~]# ls -latr /data/users/
+total 0
+drwxr-xr-x. 3 root      root      19 Jun 19 12:10 ..
+drwxr-xr-x. 3 root      root      23 Jun 19 12:10 .
+drwx------. 2 data_user data_user 62 Jun 19 12:10 data_user
+[root@host1 ~]# ls -latr /data/users/data_user/
+total 12
+-rw-r--r--. 1 data_user data_user 522 Oct 29  2024 .bashrc
+-rw-r--r--. 1 data_user data_user 144 Oct 29  2024 .bash_profile
+-rw-r--r--. 1 data_user data_user  18 Oct 29  2024 .bash_logout
+drwxr-xr-x. 3 root      root       23 Jun 19 12:10 ..
+drwx------. 2 data_user data_user  62 Jun 19 12:10 .
+[root@host1 ~]# useradd -e 2026-06-20 del_user
+[root@host1 ~]# chage -l del_user 
+Last password change                                    : Jun 19, 2026
+Password expires                                        : never
+Password inactive                                       : never
+Account expires                                         : Jun 20, 2026
+Minimum number of days between password change          : 0
+Maximum number of days between password change          : 99999
+Number of days of warning before password expires       : 7
+[root@host1 ~]# tail -5 /etc/shadow
+user2:!:20623:0:99999:7:::
+user3:!:20623:0:99999:7:::
+user4:!:20623:0:99999:7:::
+data_user:!:20623:0:99999:7:::
+del_user:!:20623:0:99999:7::20624:
+[root@host1 ~]# useradd -f 10 inactive_user
+[root@host1 ~]# chage -l inactive_user
+Last password change                                    : Jun 19, 2026
+Password expires                                        : never
+Password inactive                                       : never
+Account expires                                         : never
+Minimum number of days between password change          : 0
+Maximum number of days between password change          : 99999
+Number of days of warning before password expires       : 7
+[root@host1 ~]# tail -5 /etc/shadow
+user3:!:20623:0:99999:7:::
+user4:!:20623:0:99999:7:::
+data_user:!:20623:0:99999:7:::
+del_user:!:20623:0:99999:7::20624:
+inactive_user:!:20623:0:99999:7:10::
+** [root@host1 ~]# useradd -r -F podman_service **
+[root@host1 ~]# tail -5 /etc/shadow
+user4:!:20623:0:99999:7:::
+data_user:!:20623:0:99999:7:::
+del_user:!:20623:0:99999:7::20624:
+inactive_user:!:20623:0:99999:7:10::
+podman_service:!:20623::::::
+[root@host1 ~]# tail -5 /etc/passwd
+user4:x:1005:1005:linux_engineer:/home/user4:/bin/bash
+data_user:x:1006:1006::/data/users/data_user:/bin/bash
+del_user:x:1007:1007::/home/del_user:/bin/bash
+inactive_user:x:1008:1008::/home/inactive_user:/bin/bash
+podman_service:x:982:982::/home/podman_service:/bin/bash
+[root@host1 ~]# useradd -G wheel,docker,developers jdoe
+useradd: group 'docker' does not exist
+useradd: group 'developers' does not exist
+[root@host1 ~]# tail -5 /etc/groups
+tail: cannot open '/etc/groups' for reading: No such file or directory
+[root@host1 ~]# tail -5 /etc/group
+user4:x:1005:
+data_user:x:1006:
+del_user:x:1007:
+inactive_user:x:1008:
+podman_service:x:982:
+[root@host1 ~]# useradd -N standard_user
+[root@host1 ~]# tail -5 /etc/group
+user4:x:1005:
+data_user:x:1006:
+del_user:x:1007:
+inactive_user:x:1008:
+podman_service:x:982:
+[root@host1 ~]# tail -5 /etc/passwd
+data_user:x:1006:1006::/data/users/data_user:/bin/bash
+del_user:x:1007:1007::/home/del_user:/bin/bash
+inactive_user:x:1008:1008::/home/inactive_user:/bin/bash
+podman_service:x:982:982::/home/podman_service:/bin/bash
+standard_user:x:1009:100::/home/standard_user:/bin/bash
+[root@host1 ~]# useradd -r my_service
+[root@host1 ~]# tail -5 /etc/passwd
+del_user:x:1007:1007::/home/del_user:/bin/bash
+inactive_user:x:1008:1008::/home/inactive_user:/bin/bash
+podman_service:x:982:982::/home/podman_service:/bin/bash
+standard_user:x:1009:100::/home/standard_user:/bin/bash
+my_service:x:981:981::/home/my_service:/bin/bash
+
+
+
+
+[root@host1 ~]# useradd -Z user_u zuser
+[root@host1 ~]# 
+
+[root@host1 ~]# useradd -Z user_u zuser
+[root@host1 ~]# ls -ld /home/
+drwxr-xr-x. 12 root root 159 Jun 19 12:20 /home/
+[root@host1 ~]# ls -latr /home/
+total 0
+drwx------.  4 cloud-user    cloud-user     90 Jun 19 11:56 cloud-user
+drwx------.  4 rhel          rhel          111 Jun 19 11:58 rhel
+drwx------.  2 user1         user1          62 Jun 19 12:08 user1
+drwx------.  2 user2         user2          62 Jun 19 12:08 user2
+drwx------.  2 user3         user1          62 Jun 19 12:09 user3
+drwx------.  2 user4         user4          62 Jun 19 12:09 user4
+dr-xr-xr-x. 19 root          root          247 Jun 19 12:10 ..
+drwx------.  2 del_user      del_user       62 Jun 19 12:12 del_user
+drwx------.  2 inactive_user inactive_user  62 Jun 19 12:13 inactive_user
+drwx------.  2 standard_user users          62 Jun 19 12:17 standard_user
+drwxr-xr-x. 12 root          root          159 Jun 19 12:20 .
+drwx------.  2 zuser         zuser          62 Jun 19 12:20 zuser
+[root@host1 ~]# userdadd -o -u 1003 unique_user
+-bash: userdadd: command not found
+[root@host1 ~]# useradd -o -u 1003 unique_user
+
+[root@host1 ~]# tail -15 /etc/passwd
+rhel:x:1000:1000::/home/rhel:/bin/bash
+cloud-user:x:1001:1001:Cloud User:/home/cloud-user:/bin/bash
+stapunpriv:x:159:159:systemtap unprivileged user:/var/lib/stapunpriv:/sbin/nologin
+user1:x:1002:1002::/home/user1:/bin/bash
+user2:x:1003:1003::/home/user2:/bin/bash
+user3:x:1004:1002::/home/user3:/bin/bash
+user4:x:1005:1005:linux_engineer:/home/user4:/bin/bash
+data_user:x:1006:1006::/data/users/data_user:/bin/bash
+del_user:x:1007:1007::/home/del_user:/bin/bash
+inactive_user:x:1008:1008::/home/inactive_user:/bin/bash
+podman_service:x:982:982::/home/podman_service:/bin/bash
+standard_user:x:1009:100::/home/standard_user:/bin/bash
+my_service:x:981:981::/home/my_service:/bin/bash
+zuser:x:1010:1010::/home/zuser:/bin/bash
+unique_user:x:1003:1011::/home/unique_user:/bin/bash
+[root@host1 ~]# 
+root@host1 ~]# semanage login -l
+
+Login Name           SELinux User         MLS/MCS Range        Service
+
+__default__          unconfined_u         s0-s0:c0.c1023       *
+root                 unconfined_u         s0-s0:c0.c1023       *
+zuser                user_u               s0                   *
+[root@host1 ~]# 
+
