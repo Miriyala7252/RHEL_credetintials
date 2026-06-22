@@ -20,7 +20,7 @@
 
 =====================================================================
 ** Types of users in rhel10 **
-
+===================================================================
     1.super user(root) --0
     2.system accounts---(1-200)
     3.system process_users------(201-9999)
@@ -136,6 +136,7 @@ USRSKEL=/usr/etc/skel
 CREATE_MAIL_SPOOL=yes
 LOG_INIT=yes
 [root@host1 ~]# 
+
 [root@host1 ~]# useradd -u 1001 user1
 useradd: UID 1001 is not unique
 [root@host1 ~]# tail -5 /etc/passwd
@@ -245,12 +246,6 @@ podman_service:x:982:982::/home/podman_service:/bin/bash
 standard_user:x:1009:100::/home/standard_user:/bin/bash
 my_service:x:981:981::/home/my_service:/bin/bash
 
-
-
-
-[root@host1 ~]# useradd -Z user_u zuser
-[root@host1 ~]# 
-
 [root@host1 ~]# useradd -Z user_u zuser
 [root@host1 ~]# ls -ld /home/
 drwxr-xr-x. 12 root root 159 Jun 19 12:20 /home/
@@ -297,4 +292,21 @@ __default__          unconfined_u         s0-s0:c0.c1023       *
 root                 unconfined_u         s0-s0:c0.c1023       *
 zuser                user_u               s0                   *
 [root@host1 ~]# 
+==================================================================
+you can use same command option to modify the users paramaters by usermod instead of useradd.
 
+example:
+#usermod -u 1003 user1
+#usermod -g 1004 user2
+#usermod -c "linux_system_engineer" user4
+#usermod  -s /bin/zsh user5
+=================================================================================================================
+we can delete the user by these  commands
+
+• userdel <username>: Safely removes the user account from the system tracking databases, but preserves their personal home directory files intact.
+
+• userdel -r <username>: Removes the user account and permanently deletes their home directory /home/<username> along with their local mail spool.
+
+• userdel -f <username>: Forces the removal of a user account, even if that user is currently logged into the system or running active processes.
+
+====================================================================================================================================
